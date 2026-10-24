@@ -66,7 +66,48 @@ node import-zcode.mjs             # 体检通过才写入
 | 端点连通性 | ✅ | 真实 POST 到 `open.bigmodel.cn/api/anthropic/v1/messages` |
 | 凭据被服务端认可 | ✅ | 服务端返回了针对该账号的套餐到期提示，而不是 401 |
 | 写入 DSH 凭据库 | ✅ | 在隔离副本上验证：YAML 可解析、新旧记录均完好 |
-| 真实模型调用 | ❌ | 被 `429 code 1309` 挡住 —— **套餐到期，不是代码问题** |
+| Coding Plan 端点调用 | ❌ | 被 `429 code 1309` 挡住 —— **套餐到期，不是代码问题** |
+
+## 渠道实测：glm-5.3 到底哪个端点能用
+
+2026-10-24 用同一把 bigmodel 凭据逐端点实测，结论是**只有一个能用**：
+
+| 端点 | 结果 | 说明 |
+|---|---|---|
+| `open.bigmodel.cn/api/paas/v4` | ✅ 可用 | 普通 API，OpenAI 协议，正常返回并计费 token |
+| `open.bigmodel.cn/api/anthropic` | ❌ 429 code 1309 | Coding Plan 专属，套餐到期即拒绝 |
+| `open.bigmodel.cn/api/coding/paas/v4` | ❌ 429 | 同上，走套餐额度 |
+| `api.z.ai/api/anthropic` | ❌ 429 code 1309 | 国际版套餐同样过期 |
+| `zcode.z.ai/api/v1/zcode-plan/anthropic` | ❌ 404 | 客户端内部路径，并不对外 |
+
+由此可以推出一个实用结论：**套餐过期时，普通 API 通道仍然可用**，用不着等续订。
+把它接进 DSH 比改 zcode 插件的登录链路更省事，而且和套餐路由互不干扰。
+
+`add-ref.mjs` 就是为这条通道准备的：往 DSH 凭据库的 `refs` 段加一个 `apiKeyEnv` 能读到的键。
+
+```bash
+node add-ref.mjs ~/.dsh/.credentials.yaml BIGMODEL_API_KEY <你的 key>
+```
+
+配套的 provider 配置（写进 profile 的 `cordis.patch.yml`）：
+
+```yaml
+- id: llm-pi-ai
+  config:
+    providers:
+      bigmodel-cn:
+        displayName: 智谱 BigModel
+        apiKeyEnv: BIGMODEL_API_KEY
+        api: openai-completions
+        baseURL: https://open.bigmodel.cn/api/paas/v4
+        models:
+          - id: glm-5.3
+            name: GLM-5.3
+            contextWindow: 200000
+```
+
+注意 `refs` 是 YAML flow mapping，新增条目必须在**前一条末尾补逗号**，否则整份凭据库解析失败。
+`add-ref.mjs` 已经处理了这点，并且写入前会用解析器复核。
 
 ## 安全说明
 

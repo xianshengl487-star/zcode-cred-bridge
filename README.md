@@ -67,6 +67,9 @@ node import-zcode.mjs             # 体检通过才写入
 | 凭据被服务端认可 | ✅ | 服务端返回了针对该账号的套餐到期提示，而不是 401 |
 | 写入 DSH 凭据库 | ✅ | 在隔离副本上验证：YAML 可解析、新旧记录均完好 |
 | Coding Plan 端点调用 | ❌ | 被 `429 code 1309` 挡住 —— **套餐到期，不是代码问题** |
+| 普通 API 通道在 DSH 中加载 | ✅ | 宿主日志 provider 列表出现 `bigmodel-cn`、`modlens-bigmodel-cn` |
+| 经 DSH 的 pi-ai 适配器真实调用 | ✅ | `glm-5.3` → 正文「通了」，input 17 / output 98 / total 115，stopReason `stop` |
+| 两个模型的实用问答 | ✅ | `glm-5.3` 485 tokens、`glm-4.6` 690 tokens，回答内容正确 |
 
 ## 渠道实测：glm-5.3 到底哪个端点能用
 
